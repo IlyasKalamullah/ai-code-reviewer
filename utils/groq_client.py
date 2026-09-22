@@ -6,7 +6,15 @@ supaya jawaban LLM lebih akurat dan tidak halusinasi.
 
 import json
 import os
-from groq import Groq
+import time
+from groq import Groq, APIStatusError
+
+# Kadang Groq mengembalikan error "json_validate_failed" walau isi JSON-nya
+# sebenarnya valid (bisa dilihat di field 'failed_generation' pada error body).
+# MAX_RETRIES membuat sistem otomatis mencoba lagi sebelum menyerah, supaya
+# user tidak perlu klik manual berkali-kali untuk error yang sifatnya sementara.
+MAX_RETRIES = 3
+RETRY_DELAY_SECONDS = 1.5
 
 # Model gratis di Groq yang cukup kuat untuk reasoning soal kode.
 # Cek daftar model yang tersedia di akun kamu di https://console.groq.com/docs/models
@@ -85,31 +93,59 @@ def review_code(code: str, language: str, semgrep_findings: list, api_key: str =
             "raw_error": "GROQ_API_KEY belum diset. Isi di file .env atau masukkan lewat sidebar.",
         }
 
-    try:
-        client = Groq(api_key=key)
+    client = Groq(api_key=key)
+    user_prompt = build_user_prompt(code, language, semgrep_findings)
 
-        user_prompt = build_user_prompt(code, language, semgrep_findings)
+    last_error = None
 
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
-            response_format={"type": "json_object"},
-        )
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
 
-        raw_content = response.choices[0].message.content
-        parsed = json.loads(raw_content)
+            raw_content = response.choices[0].message.content
+            parsed = json.loads(raw_content)
 
-        return {"success": True, "result": parsed, "raw_error": None}
+            return {"success": True, "result": parsed, "raw_error": None}
 
-    except json.JSONDecodeError:
-        return {
-            "success": False,
-            "result": None,
-            "raw_error": "Model mengembalikan format yang tidak valid. Coba jalankan ulang.",
-        }
-    except Exception as e:
-        return {"success": False, "result": None, "raw_error": str(e)}
+        except APIStatusError as e:
+            # Kadang Groq menandai response sebagai gagal validasi JSON
+            # ("json_validate_failed") padahal isinya (di 'failed_generation')
+            # sebenarnya JSON yang valid. Coba parse itu dulu sebagai fallback
+            # sebelum retry, supaya tidak buang hasil yang sebenarnya bagus.
+            failed_generation = None
+            try:
+                if isinstance(e.body, dict):
+                    failed_generation = e.body.get("error", {}).get("failed_generation")
+            except Exception:
+                pass
+
+            if failed_generation:
+                try:
+                    parsed = json.loads(failed_generation)
+                    return {"success": True, "result": parsed, "raw_error": None}
+                except json.JSONDecodeError:
+                    pass
+
+            last_error = str(e)
+
+        except json.JSONDecodeError:
+            last_error = "Model mengembalikan format yang tidak valid."
+        except Exception as e:
+            last_error = str(e)
+
+        if attempt < MAX_RETRIES:
+            time.sleep(RETRY_DELAY_SECONDS)
+
+    return {
+        "success": False,
+        "result": None,
+        "raw_error": f"{last_error} (sudah dicoba {MAX_RETRIES}x)",
+    }
