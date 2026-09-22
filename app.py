@@ -15,22 +15,13 @@ from dotenv import load_dotenv
 from utils.semgrep_runner import run_semgrep, LANGUAGE_EXTENSIONS
 from utils.groq_client import review_code
 from utils.language_detector import detect_language
+from utils.theme import inject_css, render_theme_toggle, severity_badge_html
 
 AUTO_DETECT_LABEL = "🔍 Deteksi Otomatis"
 
 load_dotenv()
 
 st.set_page_config(page_title="AI Code Reviewer", page_icon="🔍", layout="wide")
-
-SEVERITY_COLOR = {
-    "critical": "🔴",
-    "high": "🟠",
-    "medium": "🟡",
-    "low": "🔵",
-    "error": "🔴",
-    "warning": "🟠",
-    "info": "🔵",
-}
 
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
@@ -49,7 +40,7 @@ def escape_markdown(text: str) -> str:
 
 def render_findings(findings: list):
     if not findings:
-        st.success("Tidak ada temuan. Kode terlihat baik dari sisi yang dianalisis.")
+        st.success("✅ Tidak ada temuan. Kode terlihat baik dari sisi yang dianalisis.")
         return
 
     sorted_findings = sorted(
@@ -58,13 +49,15 @@ def render_findings(findings: list):
 
     for f in sorted_findings:
         severity = f.get("severity", "low")
-        icon = SEVERITY_COLOR.get(severity, "⚪")
-        line_info = f" (baris {f['line']})" if f.get("line") else ""
+        line_info = f" · baris {f['line']}" if f.get("line") else ""
         category = f.get("category", "").upper()
         issue_text = f.get("issue", "-")
         suggestion_text = f.get("suggestion", "-")
+        badge = severity_badge_html(severity)
 
-        with st.expander(f"{icon} [{severity.upper()}] {category}{line_info} — {issue_text[:80]}"):
+        expander_label = f"{category}{line_info} — {issue_text[:70]}"
+        with st.expander(expander_label):
+            st.markdown(badge, unsafe_allow_html=True)
             st.markdown(f"**Masalah:** {escape_markdown(issue_text)}")
             st.markdown("**Saran perbaikan:**")
             st.markdown(escape_markdown(suggestion_text))
@@ -104,7 +97,13 @@ def display_round_result(round_index: int, round_data: dict):
     findings = result.get("findings", [])
 
     title = "📋 Hasil Review Awal" if is_first else f"📋 Hasil Review Ulang #{round_index}"
-    st.subheader(f"{title} — Bahasa: {round_data['language']} — {len(findings)} temuan")
+
+    st.markdown(
+        f'<div class="acr-section-title">{title} '
+        f'<span class="acr-badge-count">{round_data["language"]}</span> '
+        f'<span class="acr-badge-count">{len(findings)} temuan</span></div>',
+        unsafe_allow_html=True,
+    )
 
     st.info(escape_markdown(result.get("summary", "-")))
 
@@ -118,10 +117,20 @@ def display_round_result(round_index: int, round_data: dict):
 
 
 def main():
-    st.title("🔍 AI Code Reviewer")
-    st.caption(
-        "Analisis kode otomatis: keamanan, bug, performa, dan gaya penulisan. "
-        "Ditenagai Semgrep (static analysis) + Groq LLM — 100% gratis."
+    inject_css()
+
+    st.markdown(
+        """
+        <div class="acr-hero">
+            <div class="acr-hero-icon">🔍</div>
+            <div>
+                <p class="acr-hero-title">AI Code Reviewer</p>
+                <p class="acr-hero-subtitle">Analisis keamanan, bug, performa &amp; gaya penulisan —
+                ditenagai Semgrep + Groq LLM, 100% gratis.</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     if "rounds" not in st.session_state:
@@ -129,6 +138,8 @@ def main():
 
     with st.sidebar:
         st.header("⚙️ Pengaturan")
+        render_theme_toggle()
+        st.markdown("---")
         api_key_input = st.text_input(
             "Groq API Key",
             value=os.getenv("GROQ_API_KEY", ""),
