@@ -100,7 +100,7 @@ def display_round_result(round_index: int, round_data: dict):
 
     st.markdown(
         f'<div class="acr-section-title">{title} '
-        f'<span class="acr-badge-count">{round_data["language"]}</span> '
+        f'<span class="acr-badge-lang">{round_data["language"]}</span> '
         f'<span class="acr-badge-count">{len(findings)} temuan</span></div>',
         unsafe_allow_html=True,
     )

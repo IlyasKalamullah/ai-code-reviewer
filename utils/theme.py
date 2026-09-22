@@ -10,26 +10,26 @@ THEMES = {
     "light": {
         "bg": "#f5f6fa",
         "surface": "#ffffff",
-        "surface_alt": "#f0f1f6",
+        "surface_alt": "#eef0f6",
         "text": "#1a1d29",
         "text_muted": "#6b7280",
         "border": "#e5e7eb",
         "accent": "#6366f1",
         "accent_hover": "#4f46e5",
         "shadow": "0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04)",
-        "shadow_hover": "0 4px 12px rgba(16, 24, 40, 0.10)",
+        "shadow_hover": "0 6px 16px rgba(16, 24, 40, 0.12)",
     },
     "dark": {
-        "bg": "#0e1117",
-        "surface": "#181c25",
-        "surface_alt": "#1f2430",
+        "bg": "#0b0e14",
+        "surface": "#161a23",
+        "surface_alt": "#20242f",
         "text": "#e8eaf0",
         "text_muted": "#9199a8",
         "border": "#2a2f3d",
         "accent": "#818cf8",
         "accent_hover": "#a5b4fc",
         "shadow": "0 1px 3px rgba(0, 0, 0, 0.4)",
-        "shadow_hover": "0 4px 16px rgba(0, 0, 0, 0.5)",
+        "shadow_hover": "0 8px 20px rgba(0, 0, 0, 0.55)",
     },
 }
 
@@ -54,7 +54,7 @@ def inject_css():
     st.markdown(
         f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
         html, body, [class*="css"] {{
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -62,10 +62,16 @@ def inject_css():
 
         .stApp, [data-testid="stAppViewContainer"] {{
             background-color: {t["bg"]};
+            transition: background-color 0.2s ease;
         }}
 
         [data-testid="stHeader"] {{
             background-color: transparent;
+        }}
+
+        [data-testid="stMainBlockContainer"] {{
+            max-width: 1000px;
+            padding-top: 2rem;
         }}
 
         [data-testid="stSidebar"] {{
@@ -81,23 +87,29 @@ def inject_css():
             color: {t["text"]};
         }}
 
-        /* Hero header */
+        a, a:visited {{
+            color: {t["accent"]} !important;
+        }}
+
+        /* ---------- Hero header ---------- */
         .acr-hero {{
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 22px 26px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, {t["accent"]}22 0%, {t["surface"]} 60%);
+            gap: 16px;
+            padding: 24px 28px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, {t["accent"]}26 0%, {t["surface"]} 65%);
             border: 1px solid {t["border"]};
-            margin-bottom: 22px;
+            box-shadow: {t["shadow"]};
+            margin-bottom: 26px;
         }}
         .acr-hero-icon {{
-            font-size: 34px;
+            font-size: 36px;
             line-height: 1;
+            filter: drop-shadow(0 2px 4px {t["accent"]}55);
         }}
         .acr-hero-title {{
-            font-size: 26px;
+            font-size: 27px;
             font-weight: 800;
             margin: 0;
             color: {t["text"]};
@@ -106,27 +118,19 @@ def inject_css():
         .acr-hero-subtitle {{
             font-size: 14px;
             color: {t["text_muted"]};
-            margin: 4px 0 0 0;
+            margin: 5px 0 0 0;
         }}
 
-        /* Section card wrapper */
-        .acr-card {{
-            background-color: {t["surface"]};
-            border: 1px solid {t["border"]};
-            border-radius: 16px;
-            padding: 20px 22px;
-            box-shadow: {t["shadow"]};
-            margin-bottom: 18px;
-        }}
-
+        /* ---------- Section headers ---------- */
         .acr-section-title {{
             font-size: 17px;
             font-weight: 700;
             color: {t["text"]};
             display: flex;
             align-items: center;
+            flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 4px;
+            margin: 4px 0 12px 0;
         }}
 
         .acr-badge-count {{
@@ -135,9 +139,18 @@ def inject_css():
             color: white !important;
             font-size: 12px;
             font-weight: 700;
-            padding: 3px 11px;
+            padding: 3px 12px;
             border-radius: 999px;
-            margin-left: 6px;
+        }}
+        .acr-badge-lang {{
+            display: inline-block;
+            background-color: {t["surface_alt"]};
+            color: {t["text_muted"]} !important;
+            border: 1px solid {t["border"]};
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 11px;
+            border-radius: 999px;
         }}
 
         /* Severity finding badges */
@@ -147,70 +160,115 @@ def inject_css():
             gap: 5px;
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.03em;
-            padding: 3px 10px;
+            letter-spacing: 0.04em;
+            padding: 4px 11px;
             border-radius: 999px;
             text-transform: uppercase;
         }}
 
-        /* Text area & inputs */
+        /* ---------- Text area & inputs ---------- */
         .stTextArea textarea, .stTextInput input {{
             background-color: {t["surface"]} !important;
             color: {t["text"]} !important;
             border: 1.5px solid {t["border"]} !important;
             border-radius: 12px !important;
-            font-family: 'SF Mono', 'Fira Code', monospace !important;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+            font-size: 13.5px !important;
         }}
         .stTextArea textarea:focus, .stTextInput input:focus {{
             border-color: {t["accent"]} !important;
-            box-shadow: 0 0 0 3px {t["accent"]}33 !important;
+            box-shadow: 0 0 0 3px {t["accent"]}30 !important;
+        }}
+        .stTextArea textarea::placeholder {{
+            color: {t["text_muted"]} !important;
+            opacity: 0.7;
         }}
 
-        /* Buttons */
+        /* ---------- Buttons ---------- */
         .stButton button {{
             border-radius: 10px !important;
             font-weight: 600 !important;
-            border: none !important;
             transition: all 0.15s ease !important;
+        }}
+        /* Tombol sekunder (mis. "Mulai Ulang dari Awal") */
+        .stButton button:not([kind="primary"]) {{
+            background-color: {t["surface_alt"]} !important;
+            color: {t["text"]} !important;
+            border: 1.5px solid {t["border"]} !important;
+        }}
+        .stButton button:not([kind="primary"]):hover {{
+            border-color: {t["accent"]} !important;
+            color: {t["accent"]} !important;
         }}
         .stButton button[kind="primary"] {{
             background: linear-gradient(135deg, {t["accent"]} 0%, {t["accent_hover"]} 100%) !important;
+            color: white !important;
+            border: none !important;
             box-shadow: {t["shadow"]};
         }}
         .stButton button[kind="primary"]:hover {{
             box-shadow: {t["shadow_hover"]};
             transform: translateY(-1px);
         }}
+        .stButton button p {{
+            color: inherit !important;
+        }}
 
-        /* Expander (finding cards) */
+        /* ---------- Expander (finding cards) ---------- */
         [data-testid="stExpander"] {{
             background-color: {t["surface"]};
             border: 1px solid {t["border"]} !important;
             border-radius: 12px !important;
             box-shadow: {t["shadow"]};
             margin-bottom: 10px;
+            overflow: hidden;
+        }}
+        [data-testid="stExpander"]:hover {{
+            box-shadow: {t["shadow_hover"]};
         }}
         [data-testid="stExpander"] summary {{
             font-weight: 600;
             background-color: {t["surface"]} !important;
             color: {t["text"]} !important;
+            padding: 4px 2px !important;
+        }}
+        [data-testid="stExpander"] summary:hover {{
+            background-color: {t["surface_alt"]} !important;
         }}
         [data-testid="stExpander"] summary * {{
             color: {t["text"]} !important;
         }}
-        [data-testid="stExpanderDetails"] {{
-            background-color: {t["surface"]} !important;
-        }}
-
-        /* Kode inline (`...`) di dalam teks markdown */
-        .stMarkdown code {{
+        /* Kode inline di JUDUL expander (kadang muncul dari teks temuan AI) */
+        [data-testid="stExpander"] summary code {{
             background-color: {t["surface_alt"]} !important;
             color: {t["accent"]} !important;
             border-radius: 4px;
             padding: 1px 5px;
         }}
+        [data-testid="stExpanderDetails"] {{
+            background-color: {t["surface"]} !important;
+            padding-top: 6px !important;
+        }}
 
-        /* Selectbox (React Aria ComboBox, Streamlit versi baru) */
+        /* Kode inline (`...`) di dalam isi markdown */
+        .stMarkdown code {{
+            background-color: {t["surface_alt"]} !important;
+            color: {t["accent"]} !important;
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 0.9em;
+        }}
+        .stMarkdown pre code {{
+            color: {t["text"]} !important;
+            background-color: transparent !important;
+        }}
+        .stMarkdown pre {{
+            background-color: {t["surface_alt"]} !important;
+            border: 1px solid {t["border"]} !important;
+            border-radius: 10px !important;
+        }}
+
+        /* ---------- Selectbox (React Aria ComboBox) ---------- */
         [data-testid="stSelectbox"] [role="group"] {{
             background-color: {t["surface"]} !important;
             border-color: {t["border"]} !important;
@@ -234,7 +292,7 @@ def inject_css():
         }}
 
         /* Tombol ikon kecil (mis. show/hide password) */
-        [data-testid="stTextInput"] button, .stTextInput button {{
+        [data-testid="stTextInput"] button {{
             background-color: {t["surface"]} !important;
             border: 1px solid {t["border"]} !important;
         }}
@@ -247,23 +305,43 @@ def inject_css():
             background-color: {t["accent"]} !important;
         }}
 
-        /* Alert boxes */
+        /* ---------- Alert boxes ---------- */
         [data-testid="stAlert"] {{
+            background-color: {t["surface_alt"]} !important;
             border-radius: 12px !important;
             border: 1px solid {t["border"]} !important;
         }}
-
-        /* Divider spacing tighten */
-        hr {{
-            border-color: {t["border"]} !important;
-            margin: 22px 0 !important;
+        [data-testid="stAlert"] p, [data-testid="stAlert"] span {{
+            color: {t["text"]} !important;
         }}
 
-        /* Status widget */
+        /* ---------- st.json (temuan mentah Semgrep) ---------- */
+        [data-testid="stJson"] {{
+            background-color: {t["surface_alt"]} !important;
+            border: 1px solid {t["border"]} !important;
+            border-radius: 10px !important;
+        }}
+
+        /* Divider spacing */
+        hr {{
+            border-color: {t["border"]} !important;
+            margin: 24px 0 !important;
+            opacity: 0.6;
+        }}
+
+        /* Status widget (progress saat analisis berjalan) */
         [data-testid="stStatusWidget"] {{
             background-color: {t["surface"]} !important;
             border-radius: 12px !important;
             border: 1px solid {t["border"]} !important;
+        }}
+        [data-testid="stStatusWidget"] p {{
+            color: {t["text"]} !important;
+        }}
+
+        /* Tooltip help icon */
+        [data-testid="stTooltipHoverTarget"] svg {{
+            color: {t["text_muted"]} !important;
         }}
         </style>
         """,
