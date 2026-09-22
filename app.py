@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 
 from utils.semgrep_runner import run_semgrep, LANGUAGE_EXTENSIONS
 from utils.groq_client import review_code
+from utils.language_detector import detect_language
+
+AUTO_DETECT_LABEL = "🔍 Deteksi Otomatis"
 
 load_dotenv()
 
@@ -67,24 +70,40 @@ def main():
         st.markdown("---")
         st.markdown(
             "**Cara pakai:**\n"
-            "1. Pilih bahasa pemrograman\n"
-            "2. Paste kode kamu\n"
-            "3. Klik 'Review Kode'\n"
+            "1. Paste kode kamu (bahasa otomatis terdeteksi)\n"
+            "2. Klik 'Review Kode'\n"
         )
         st.markdown("---")
         st.markdown("[Dapatkan Groq API Key gratis →](https://console.groq.com/keys)")
 
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        language = st.selectbox("Bahasa Pemrograman", list(LANGUAGE_EXTENSIONS.keys()))
-    with col2:
-        st.write("")
-
     code_input = st.text_area(
         "Paste kode di sini",
         height=350,
-        placeholder="# Tempel kode yang ingin direview di sini...",
+        placeholder="# Tempel kode yang ingin direview di sini (bahasa apa saja, akan terdeteksi otomatis)...",
     )
+
+    detected = detect_language(code_input) if code_input.strip() else None
+
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        language_options = [AUTO_DETECT_LABEL] + list(LANGUAGE_EXTENSIONS.keys())
+        language_choice = st.selectbox(
+            "Bahasa Pemrograman",
+            language_options,
+            help="Biarkan di 'Deteksi Otomatis' supaya bahasa terdeteksi sendiri dari kode yang kamu paste, atau pilih manual kalau deteksinya kurang tepat.",
+        )
+    with col2:
+        if language_choice == AUTO_DETECT_LABEL:
+            if code_input.strip():
+                if detected:
+                    st.success(f"Bahasa terdeteksi: **{detected}**")
+                else:
+                    st.warning(
+                        "Bahasa belum bisa dideteksi otomatis dari kode ini. "
+                        "Silakan pilih bahasa secara manual di dropdown."
+                    )
+            else:
+                st.caption("Bahasa akan terdeteksi otomatis begitu kamu paste kode.")
 
     run_button = st.button("🚀 Review Kode", type="primary", use_container_width=False)
 
@@ -97,7 +116,18 @@ def main():
             st.warning("Masukkan Groq API Key di sidebar terlebih dahulu (gratis di console.groq.com).")
             return
 
-        with st.status("Menjalankan analisis...", expanded=True) as status:
+        if language_choice == AUTO_DETECT_LABEL:
+            language = detected
+            if not language:
+                st.error(
+                    "Bahasa tidak bisa dideteksi otomatis dari kode ini. "
+                    "Silakan pilih bahasa secara manual di dropdown lalu klik 'Review Kode' lagi."
+                )
+                return
+        else:
+            language = language_choice
+
+        with st.status(f"Menjalankan analisis ({language})...", expanded=True) as status:
             st.write("Menjalankan static analysis (Semgrep)...")
             semgrep_result = run_semgrep(code_input, language)
 
