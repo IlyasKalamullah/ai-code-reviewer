@@ -31,6 +31,18 @@ SEVERITY_COLOR = {
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
 
+def escape_markdown(text: str) -> str:
+    """
+    Streamlit merender teks di antara tanda '$' sebagai rumus LaTeX.
+    Karena saran perbaikan sering berisi kode (mis. variabel PHP seperti
+    $user, $keyword), tanda '$' perlu di-escape supaya tidak dikira LaTeX
+    dan menyebabkan teks tampil kacau/terduplikasi.
+    """
+    if not text:
+        return text
+    return text.replace("$", "\\$")
+
+
 def render_findings(findings: list):
     if not findings:
         st.success("Tidak ada temuan. Kode terlihat baik dari sisi yang dianalisis.")
@@ -45,11 +57,13 @@ def render_findings(findings: list):
         icon = SEVERITY_COLOR.get(severity, "⚪")
         line_info = f" (baris {f['line']})" if f.get("line") else ""
         category = f.get("category", "").upper()
+        issue_text = f.get("issue", "-")
+        suggestion_text = f.get("suggestion", "-")
 
-        with st.expander(f"{icon} [{severity.upper()}] {category}{line_info} — {f.get('issue', '')[:80]}"):
-            st.markdown(f"**Masalah:** {f.get('issue', '-')}")
-            st.markdown(f"**Saran perbaikan:**")
-            st.markdown(f.get("suggestion", "-"))
+        with st.expander(f"{icon} [{severity.upper()}] {category}{line_info} — {issue_text[:80]}"):
+            st.markdown(f"**Masalah:** {escape_markdown(issue_text)}")
+            st.markdown("**Saran perbaikan:**")
+            st.markdown(escape_markdown(suggestion_text))
 
 
 def main():
@@ -154,7 +168,7 @@ def main():
         result = llm_result["result"]
 
         st.subheader("📋 Ringkasan")
-        st.info(result.get("summary", "-"))
+        st.info(escape_markdown(result.get("summary", "-")))
 
         st.subheader("🔎 Temuan Detail")
         render_findings(result.get("findings", []))
