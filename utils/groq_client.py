@@ -9,8 +9,10 @@ import os
 from groq import Groq
 
 # Model gratis di Groq yang cukup kuat untuk reasoning soal kode.
-# Bisa diganti ke model lain yang tersedia di akun Groq-mu.
-MODEL_NAME = "llama-3.3-70b-versatile"
+# Cek daftar model yang tersedia di akun kamu di https://console.groq.com/docs/models
+# Ganti string di bawah ini kalau model ini suatu saat di-deprecate atau tidak
+# tersedia di akun kamu.
+MODEL_NAME = "openai/gpt-oss-120b"
 
 SYSTEM_PROMPT = """Kamu adalah code reviewer ahli yang berpengalaman di bidang keamanan aplikasi (application security), \
 best practice engineering, dan performa kode. Tugasmu adalah menganalisis potongan kode yang diberikan user.
