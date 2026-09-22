@@ -2,6 +2,10 @@
 AI Code Reviewer — Streamlit App
 Mengoreksi dan memberi saran perbaikan kode (keamanan, bug, performa, style)
 dengan menggabungkan Semgrep (static analysis, gratis) + Groq LLM (gratis).
+
+Mendukung "Review Ulang": setelah hasil review pertama muncul, user bisa
+paste kode yang sudah diperbaiki untuk dicek lagi, berkali-kali, sampai
+semua temuan hilang.
 """
 
 import os
@@ -66,12 +70,62 @@ def render_findings(findings: list):
             st.markdown(escape_markdown(suggestion_text))
 
 
+def run_analysis(code: str, language: str, api_key: str):
+    """Menjalankan Semgrep + Groq LLM untuk satu potongan kode. Return (semgrep_result, llm_result)."""
+    semgrep_result = run_semgrep(code, language)
+
+    if not semgrep_result["success"]:
+        st.warning(
+            f"Semgrep tidak berjalan sempurna: {semgrep_result['raw_error']}. "
+            "Melanjutkan dengan analisis AI saja."
+        )
+
+    llm_result = review_code(
+        code=code,
+        language=language,
+        semgrep_findings=semgrep_result.get("findings", []),
+        api_key=api_key,
+    )
+
+    return semgrep_result, llm_result
+
+
+def display_round_result(round_index: int, round_data: dict):
+    """Menampilkan hasil satu ronde review (baik ronde pertama maupun revisi)."""
+    is_first = round_index == 0
+    llm_result = round_data["llm"]
+    semgrep_result = round_data["semgrep"]
+
+    if not llm_result["success"]:
+        st.error(f"Gagal mendapatkan review dari AI: {llm_result['raw_error']}")
+        return
+
+    result = llm_result["result"]
+    findings = result.get("findings", [])
+
+    title = "📋 Hasil Review Awal" if is_first else f"📋 Hasil Review Ulang #{round_index}"
+    st.subheader(f"{title} — Bahasa: {round_data['language']} — {len(findings)} temuan")
+
+    st.info(escape_markdown(result.get("summary", "-")))
+
+    render_findings(findings)
+
+    with st.expander("Lihat temuan mentah Semgrep (opsional)"):
+        if semgrep_result.get("findings"):
+            st.json(semgrep_result["findings"])
+        else:
+            st.write("Tidak ada temuan mentah dari Semgrep.")
+
+
 def main():
     st.title("🔍 AI Code Reviewer")
     st.caption(
         "Analisis kode otomatis: keamanan, bug, performa, dan gaya penulisan. "
         "Ditenagai Semgrep (static analysis) + Groq LLM — 100% gratis."
     )
+
+    if "rounds" not in st.session_state:
+        st.session_state.rounds = []
 
     with st.sidebar:
         st.header("⚙️ Pengaturan")
@@ -86,14 +140,38 @@ def main():
             "**Cara pakai:**\n"
             "1. Paste kode kamu (bahasa otomatis terdeteksi)\n"
             "2. Klik 'Review Kode'\n"
+            "3. Perbaiki kode sesuai saran, lalu paste lagi di kotak 'Review Ulang' untuk cek ulang\n"
         )
         st.markdown("---")
         st.markdown("[Dapatkan Groq API Key gratis →](https://console.groq.com/keys)")
 
+        if st.session_state.rounds:
+            st.markdown("---")
+            if st.button("🗑️ Mulai Ulang dari Awal"):
+                st.session_state.rounds = []
+                st.rerun()
+
+    # Tampilkan hasil semua ronde yang sudah dijalankan (riwayat)
+    for i, round_data in enumerate(st.session_state.rounds):
+        display_round_result(i, round_data)
+        st.markdown("---")
+
+    round_num = len(st.session_state.rounds)
+    is_first = round_num == 0
+    prev_code = st.session_state.rounds[-1]["code"] if not is_first else ""
+
+    section_label = (
+        "Paste kode di sini"
+        if is_first
+        else f"✏️ Revisi #{round_num} — Paste kode yang sudah diperbaiki untuk dicek ulang"
+    )
+
     code_input = st.text_area(
-        "Paste kode di sini",
+        section_label,
+        value=prev_code,
         height=350,
         placeholder="# Tempel kode yang ingin direview di sini (bahasa apa saja, akan terdeteksi otomatis)...",
+        key=f"code_area_{round_num}",
     )
 
     detected = detect_language(code_input) if code_input.strip() else None
@@ -105,6 +183,7 @@ def main():
             "Bahasa Pemrograman",
             language_options,
             help="Biarkan di 'Deteksi Otomatis' supaya bahasa terdeteksi sendiri dari kode yang kamu paste, atau pilih manual kalau deteksinya kurang tepat.",
+            key=f"lang_select_{round_num}",
         )
     with col2:
         if language_choice == AUTO_DETECT_LABEL:
@@ -119,7 +198,8 @@ def main():
             else:
                 st.caption("Bahasa akan terdeteksi otomatis begitu kamu paste kode.")
 
-    run_button = st.button("🚀 Review Kode", type="primary", use_container_width=False)
+    button_label = "🚀 Review Kode" if is_first else "🔄 Review Ulang dengan Kode yang Diperbaiki"
+    run_button = st.button(button_label, type="primary", key=f"run_button_{round_num}")
 
     if run_button:
         if not code_input.strip():
@@ -135,7 +215,7 @@ def main():
             if not language:
                 st.error(
                     "Bahasa tidak bisa dideteksi otomatis dari kode ini. "
-                    "Silakan pilih bahasa secara manual di dropdown lalu klik 'Review Kode' lagi."
+                    "Silakan pilih bahasa secara manual di dropdown lalu klik tombol lagi."
                 )
                 return
         else:
@@ -143,41 +223,19 @@ def main():
 
         with st.status(f"Menjalankan analisis ({language})...", expanded=True) as status:
             st.write("Menjalankan static analysis (Semgrep)...")
-            semgrep_result = run_semgrep(code_input, language)
-
-            if not semgrep_result["success"]:
-                st.warning(
-                    f"Semgrep tidak berjalan sempurna: {semgrep_result['raw_error']}. "
-                    "Melanjutkan dengan analisis AI saja."
-                )
-
             st.write("Mengirim ke Groq LLM untuk analisis mendalam...")
-            llm_result = review_code(
-                code=code_input,
-                language=language,
-                semgrep_findings=semgrep_result.get("findings", []),
-                api_key=api_key_input,
-            )
-
+            semgrep_result, llm_result = run_analysis(code_input, language, api_key_input)
             status.update(label="Selesai!", state="complete", expanded=False)
 
-        if not llm_result["success"]:
-            st.error(f"Gagal mendapatkan review dari AI: {llm_result['raw_error']}")
-            return
-
-        result = llm_result["result"]
-
-        st.subheader("📋 Ringkasan")
-        st.info(escape_markdown(result.get("summary", "-")))
-
-        st.subheader("🔎 Temuan Detail")
-        render_findings(result.get("findings", []))
-
-        with st.expander("Lihat temuan mentah Semgrep (opsional)"):
-            if semgrep_result.get("findings"):
-                st.json(semgrep_result["findings"])
-            else:
-                st.write("Tidak ada temuan mentah dari Semgrep.")
+        st.session_state.rounds.append(
+            {
+                "code": code_input,
+                "language": language,
+                "semgrep": semgrep_result,
+                "llm": llm_result,
+            }
+        )
+        st.rerun()
 
 
 if __name__ == "__main__":
