@@ -21,6 +21,9 @@ LANGUAGE_EXTENSIONS = {
     "C": ".c",
     "C++": ".cpp",
     "Ruby": ".rb",
+    "Kotlin": ".kt",
+    "Swift": ".swift",
+    "Dart": ".dart",
 }
 
 # Ruleset publik Semgrep yang gratis dan tidak butuh login.
